@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { Terrain } from "./world/Terrain";
+import { Player } from "./entities/Player";
+
 
 export class Game {
   private readonly container: HTMLElement;
@@ -11,6 +13,7 @@ export class Game {
   private animationFrameId: number | null = null;
   private previousTime = 0;
   private terrain!: Terrain;
+  private player!: Player;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -52,8 +55,15 @@ export class Game {
   	width: 60,
   	depth: 60,
 		});
-
+	
+	this.player = new Player(
+  	this.camera,
+  	this.renderer.domElement,
+		);
+		
 	this.scene.add(this.terrain.group);
+	this.player.setPosition(new THREE.Vector3(0, 0, 0));
+	this.scene.add(this.player.mesh);
   }
 
   /**
@@ -129,9 +139,9 @@ export class Game {
    * Los sistemas de movimiento, combate, enemigos, etc.
    * se irán incorporando aquí posteriormente.
    */
-  private update(_delta: number): void {
-    // Gameplay logic goes here.
-  }
+	private update(delta: number): void {
+  		this.player.update(delta);
+	}
 
   /**
    * Actualiza cámara y renderer cuando cambia el tamaño
@@ -170,6 +180,7 @@ export class Game {
 
     window.removeEventListener("resize", this.handleResize);
     this.terrain.dispose();
+    this.player.dispose();
 
     this.renderer.dispose();
 
