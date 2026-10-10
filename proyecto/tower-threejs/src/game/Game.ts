@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Terrain } from "./world/Terrain";
 import { Player } from "./entities/Player";
+import { Base } from "./entities/Base";
 
 
 export class Game {
@@ -14,6 +15,7 @@ export class Game {
   private previousTime = 0;
   private terrain!: Terrain;
   private player!: Player;
+  private base!: Base;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -55,6 +57,12 @@ export class Game {
   	width: 60,
   	depth: 60,
 		});
+	this.base = new Base({
+  		maxHealth: 1000,
+		});
+
+	this.base.setPosition(new THREE.Vector3(0, 0, -10));
+	this.scene.add(this.base.mesh);
 	
 	this.player = new Player(
   	this.camera,
@@ -131,6 +139,11 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
 
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
+    window.addEventListener("keydown", (event) => {
+  	if (event.key.toLowerCase() === "h") {
+    	this.base.takeDamage(100);
+  		}
+	});
   }
 
   /**
@@ -147,6 +160,7 @@ export class Game {
    * Actualiza cámara y renderer cuando cambia el tamaño
    * del viewport.
    */
+   
   private handleResize(): void {
     const { width, height } = this.getViewportSize();
     const aspect = width / height;
@@ -181,6 +195,7 @@ export class Game {
     window.removeEventListener("resize", this.handleResize);
     this.terrain.dispose();
     this.player.dispose();
+    this.base.dispose();
 
     this.renderer.dispose();
 
