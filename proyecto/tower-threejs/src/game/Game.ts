@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Terrain } from "./world/Terrain";
 import { Player } from "./entities/Player";
 import { Base } from "./entities/Base";
+import { GameCamera } from "./world/Camera";
 
 
 export class Game {
@@ -16,6 +17,7 @@ export class Game {
   private terrain!: Terrain;
   private player!: Player;
   private base!: Base;
+  private gameCamera!: GameCamera;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -68,6 +70,15 @@ export class Game {
   	this.camera,
   	this.renderer.domElement,
 		);
+		
+	this.gameCamera = new GameCamera(
+  	this.player.mesh,
+  	this.container.clientWidth,
+  	this.container.clientHeight,
+		);
+	
+	this.camera = this.gameCamera.camera;
+	this.gameCamera.snapToTarget(this.player.mesh);
 		
 	this.scene.add(this.terrain.group);
 	this.player.setPosition(new THREE.Vector3(0, 0, 0));
@@ -154,6 +165,7 @@ export class Game {
    */
 	private update(delta: number): void {
   		this.player.update(delta);
+  		this.gameCamera.update(delta, this.player.mesh);
 	}
 
   /**
@@ -165,7 +177,8 @@ export class Game {
     const { width, height } = this.getViewportSize();
     const aspect = width / height;
     const viewSize = 20;
-
+    
+    this.gameCamera.resize(width, height);
     this.camera.left = (-viewSize * aspect) / 2;
     this.camera.right = (viewSize * aspect) / 2;
     this.camera.top = viewSize / 2;
