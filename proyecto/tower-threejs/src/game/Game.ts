@@ -19,32 +19,34 @@ export class Game {
   private base!: Base;
   private gameCamera!: GameCamera;
 
-  constructor(container: HTMLElement) {
-    this.container = container;
-
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x111318);
-
-    const { width, height } = this.getViewportSize();
-
-    this.camera = this.createCamera(width, height);
-
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-    });
-
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(width, height);
-
-    this.container.appendChild(this.renderer.domElement);
-
-    this.handleResize = this.handleResize.bind(this);
-    this.gameLoop = this.gameLoop.bind(this);
-
-    window.addEventListener("resize", this.handleResize);
-
-    this.setupScene();
-  }
+  
+	constructor(container: HTMLElement) {
+  	this.container = container;
+	
+  	this.scene = new THREE.Scene();
+  	this.scene.background = new THREE.Color(0x111318);
+	
+  	const { width, height } = this.getViewportSize();
+	
+  	this.renderer = new THREE.WebGLRenderer({
+    	antialias: true,
+  	});
+	
+  	this.renderer.setPixelRatio(
+    	Math.min(window.devicePixelRatio, 2),
+  	);
+  	this.renderer.setSize(width, height);
+	
+  	this.container.appendChild(this.renderer.domElement);
+	
+  	this.handleResize = this.handleResize.bind(this);
+  	this.gameLoop = this.gameLoop.bind(this);
+	
+  	window.addEventListener("resize", this.handleResize);
+	
+  	this.setupScene();
+	}
+	
 
   /**
    * Inicializa los elementos básicos de la escena.
@@ -52,64 +54,49 @@ export class Game {
    * El contenido del mundo se irá agregando aquí posteriormente:
    * terreno, base, jugador, enemigos, etc.
    */
-  private setupScene(): void {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2);
-    this.scene.add(ambientLight);
-    this.terrain = new Terrain({
-  	width: 60,
-  	depth: 60,
-		});
-	this.base = new Base({
-  		maxHealth: 1000,
-		});
+  
+	private setupScene(): void {
+  	const ambientLight = new THREE.AmbientLight(0xffffff, 2);
+  	this.scene.add(ambientLight);
+	
+  	// Terreno
+  	this.terrain = new Terrain({
+    	width: 60,
+    	depth: 60,
+  	});
+  	this.scene.add(this.terrain.group);
+	
+  	// Base principal
+  	this.base = new Base({
+    	maxHealth: 1000,
+  	});
+  	this.base.setPosition(new THREE.Vector3(0, 0, -10));
+  	this.scene.add(this.base.mesh);
+	
+  	// Jugador: primero debe existir antes de crear la cámara.
+  	this.player = new Player(
+    	new THREE.PerspectiveCamera(),
+    	this.renderer.domElement,
+  	);
+	
+  	this.player.setPosition(new THREE.Vector3(0, 0, 0));
+  	this.scene.add(this.player.mesh);
+	
+  	// Cámara isométrica que sigue al jugador.
+  	this.gameCamera = new GameCamera(
+    	this.player.mesh,
+    	this.container.clientWidth,
+    	this.container.clientHeight,
+  	);
+	
+  	this.camera = this.gameCamera.camera;
+  	this.gameCamera.snapToTarget(this.player.mesh);
+	}
 
-	this.base.setPosition(new THREE.Vector3(0, 0, -10));
-	this.scene.add(this.base.mesh);
-	
-	this.player = new Player(
-  	this.camera,
-  	this.renderer.domElement,
-		);
-		
-	this.gameCamera = new GameCamera(
-  	this.player.mesh,
-  	this.container.clientWidth,
-  	this.container.clientHeight,
-		);
-	
-	this.camera = this.gameCamera.camera;
-	this.gameCamera.snapToTarget(this.player.mesh);
-		
-	this.scene.add(this.terrain.group);
-	this.player.setPosition(new THREE.Vector3(0, 0, 0));
-	this.scene.add(this.player.mesh);
-  }
 
   /**
    * Crea una cámara ortográfica con orientación isométrica.
    */
-  private createCamera(
-    width: number,
-    height: number,
-  ): THREE.OrthographicCamera {
-    const aspect = width / height;
-    const viewSize = 20;
-
-    const camera = new THREE.OrthographicCamera(
-      (-viewSize * aspect) / 2,
-      (viewSize * aspect) / 2,
-      viewSize / 2,
-      -viewSize / 2,
-      0.1,
-      1000,
-    );
-
-    // Orientación inicial tipo isométrica.
-    camera.position.set(10, 10, 10);
-    camera.lookAt(0, 0, 0);
-
-    return camera;
-  }
 
   /**
    * Inicia el game loop.
@@ -179,6 +166,7 @@ export class Game {
     const viewSize = 20;
     
     this.gameCamera.resize(width, height);
+
     this.camera.left = (-viewSize * aspect) / 2;
     this.camera.right = (viewSize * aspect) / 2;
     this.camera.top = viewSize / 2;
