@@ -31,7 +31,7 @@ export class Player {
   );
   private readonly targetPoint = new THREE.Vector3();
 
-  private readonly camera: THREE.Camera;
+  private camera: THREE.Camera;
   private readonly domElement: HTMLElement;
 
   private isDisposed = false;
@@ -134,6 +134,10 @@ export class Player {
       this.keys.add(key);
     }
   };
+  
+  public setCamera(camera: THREE.Camera): void {
+  	this.camera = camera;
+  }
 
   private handleKeyUp = (event: KeyboardEvent): void => {
     this.keys.delete(event.key.toLowerCase());

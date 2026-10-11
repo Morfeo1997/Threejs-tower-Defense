@@ -83,13 +83,14 @@ export class Game {
   	this.scene.add(this.player.mesh);
 	
   	// Cámara isométrica que sigue al jugador.
-  	this.gameCamera = new GameCamera(
-    	this.player.mesh,
-    	this.container.clientWidth,
-    	this.container.clientHeight,
-  	);
+	this.gameCamera = new GameCamera(
+  		this.player.mesh,
+  		this.container.clientWidth,
+  		this.container.clientHeight,
+	);
 	
-  	this.camera = this.gameCamera.camera;
+	this.camera = this.gameCamera.camera;
+	this.player.setCamera(this.camera);
   	this.gameCamera.snapToTarget(this.player.mesh);
 	}
 
