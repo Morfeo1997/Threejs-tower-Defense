@@ -3,6 +3,10 @@ import { Terrain } from "./world/Terrain";
 import { Player } from "./entities/Player";
 import { Base } from "./entities/Base";
 import { GameCamera } from "./world/Camera";
+import { Enemy } from "./entities/Enemy";
+import { Civilian } from "./entities/Civilian";
+import { Bullet } from "./entities/Bullet";
+
 
 
 export class Game {
@@ -18,6 +22,17 @@ export class Game {
   private player!: Player;
   private base!: Base;
   private gameCamera!: GameCamera;
+  private enemies: Enemy[] = [];
+  private civilians: Civilian[] = [];
+  private bullets: Bullet[] = [];
+	
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly mouse = new THREE.Vector2();
+  private readonly groundPlane = new THREE.Plane(
+  	new THREE.Vector3(0, 1, 0),
+  	0,
+  );
+
 
   
 	constructor(container: HTMLElement) {
@@ -36,6 +51,10 @@ export class Game {
     	Math.min(window.devicePixelRatio, 2),
   	);
   	this.renderer.setSize(width, height);
+  	this.renderer.domElement.addEventListener(
+  		"pointerdown",
+  		this.handlePointerDown,
+	);
 	
   	this.container.appendChild(this.renderer.domElement);
 	
@@ -92,12 +111,75 @@ export class Game {
 	this.camera = this.gameCamera.camera;
 	this.player.setCamera(this.camera);
   	this.gameCamera.snapToTarget(this.player.mesh);
-	}
+  	
+ 	// Civiles estáticos de prueba.
+ 	const civilianPositions = [
+   	new THREE.Vector3(-5, 0, -5),
+   	new THREE.Vector3(-7, 0, -8),
+   	new THREE.Vector3(5, 0, -6),
+   	new THREE.Vector3(7, 0, -9),
+ 	];
+	
+ 	for (const position of civilianPositions) {
+   	const civilian = new Civilian();
+   	civilian.setPosition(position);
+   	this.civilians.push(civilian);
+   	this.scene.add(civilian.mesh);
+ 	}
+	
+ 	// Enemigos de prueba.
+ 	for (let i = 0; i < 3; i++) {
+   	const enemy = new Enemy();
+   	enemy.setPosition(
+     	new THREE.Vector3(-8 + i * 8, 0, 15),
+   	);
+	
+   	this.enemies.push(enemy);
+   	this.scene.add(enemy.mesh);
+ 	}
+	
+}
 
 
-  /**
-   * Crea una cámara ortográfica con orientación isométrica.
-   */
+	
+	private handlePointerDown = (
+  	event: PointerEvent,
+	): void => {
+  	// Solo dispara con el botón izquierdo.
+  	if (event.button !== 0) return;
+	
+  	const rect = this.renderer.domElement.getBoundingClientRect();
+	
+  	this.mouse.set(
+    	((event.clientX - rect.left) / rect.width) * 2 - 1,
+    	-((event.clientY - rect.top) / rect.height) * 2 + 1,
+  	);
+	
+  	this.raycaster.setFromCamera(this.mouse, this.camera);
+	
+  	const target = new THREE.Vector3();
+	
+  	if (!this.raycaster.ray.intersectPlane(this.groundPlane, target)) {
+    	return;
+  	}
+	
+  	const origin = this.player.getPosition();
+  	origin.y = 0.6;
+	
+  	// El proyectil viaja horizontalmente por el terreno.
+  	const direction = new THREE.Vector3(
+    	target.x - origin.x,
+    	0,
+    	target.z - origin.z,
+  	);
+	
+  	if (direction.lengthSq() < 0.0001) return;
+	
+  	const bullet = new Bullet(origin, direction);
+  	this.bullets.push(bullet);
+  	this.scene.add(bullet.mesh);
+	};
+
 
   /**
    * Inicia el game loop.
@@ -151,10 +233,63 @@ export class Game {
    * Los sistemas de movimiento, combate, enemigos, etc.
    * se irán incorporando aquí posteriormente.
    */
+	
 	private update(delta: number): void {
   		this.player.update(delta);
   		this.gameCamera.update(delta, this.player.mesh);
+	
+  	// Los enemigos persiguen la base y la atacan al acercarse.
+  	for (const enemy of this.enemies) {
+    	const damage = enemy.update(
+      	delta,
+      	this.base.getPosition(),
+    	);
+	
+    	if (damage > 0) {
+      	this.base.takeDamage(damage);
+    	}
+  	}
+	
+  	// Mover balas y comprobar impactos.
+  	for (let i = this.bullets.length - 1; i >= 0; i--) {
+    	const bullet = this.bullets[i];
+    	const alive = bullet.update(delta);
+	
+    	let hit = false;
+	
+    	for (const enemy of this.enemies) {
+      	if (enemy.isDead()) continue;
+	
+      	const distance = bullet
+        	.getPosition()
+        	.distanceTo(enemy.mesh.position);
+	
+      	if (distance < 0.9) {
+        	enemy.takeDamage(bullet.damage);
+        	hit = true;
+        	break;
+      	}
+    	}
+	
+    	if (!alive || hit) {
+      	this.scene.remove(bullet.mesh);
+      	bullet.dispose();
+      	this.bullets.splice(i, 1);
+    	}
+  	}
+	
+  	// Retirar enemigos muertos de la escena.
+  	for (let i = this.enemies.length - 1; i >= 0; i--) {
+    	const enemy = this.enemies[i];
+	
+    	if (enemy.isDead()) {
+      	this.scene.remove(enemy.mesh);
+      	enemy.dispose();
+      	this.enemies.splice(i, 1);
+    	}
+  	}
 	}
+
 
   /**
    * Actualiza cámara y renderer cuando cambia el tamaño
@@ -200,6 +335,31 @@ export class Game {
     this.base.dispose();
 
     this.renderer.dispose();
+    
+	this.renderer.domElement.removeEventListener(
+  	"pointerdown",
+  	this.handlePointerDown,
+	);
+	
+	for (const bullet of this.bullets) {
+  	this.scene.remove(bullet.mesh);
+  	bullet.dispose();
+	}
+	
+	for (const enemy of this.enemies) {
+  	this.scene.remove(enemy.mesh);
+  	enemy.dispose();
+	}
+	
+	for (const civilian of this.civilians) {
+  	this.scene.remove(civilian.mesh);
+  	civilian.dispose();
+	}
+	
+	this.bullets = [];
+	this.enemies = [];
+	this.civilians = [];
+	
 
     if (this.renderer.domElement.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement);
