@@ -6,6 +6,11 @@ import { GameCamera } from "./world/Camera";
 import { Enemy } from "./entities/Enemy";
 import { Civilian } from "./entities/Civilian";
 import { Bullet } from "./entities/Bullet";
+import {
+  createInitialGameState,
+  type GameState,
+  type GamePhase,
+} from "./GameState";
 
 
 
@@ -25,6 +30,8 @@ export class Game {
   private enemies: Enemy[] = [];
   private civilians: Civilian[] = [];
   private bullets: Bullet[] = [];
+  private state: GameState = createInitialGameState();
+  private readonly onStateChange?: (state: GameState) => void;
 	
   private readonly raycaster = new THREE.Raycaster();
   private readonly mouse = new THREE.Vector2();
