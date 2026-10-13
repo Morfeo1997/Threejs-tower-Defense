@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 
+
 * {
   box-sizing: border-box;
 }
@@ -15,8 +16,9 @@ body,
 }
 
 body {
-  font-family: sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   background: #111318;
+  color: #f1f5f9;
 }
 
 .game-container {
@@ -27,6 +29,108 @@ body {
 }
 
 .game-canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.game-canvas canvas {
+  display: block;
+}
+
+.game-hud {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+
+  min-height: 54px;
+  padding: 10px 18px;
+
+  color: #f1f5f9;
+  background: rgba(17, 24, 32, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.hud-day,
+.hud-phase,
+.hud-resources,
+.hud-resource {
+  display: flex;
+  align-items: center;
+}
+
+.hud-day {
+  gap: 9px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.hud-day svg {
+  color: #cbd5e1;
+}
+
+.hud-phase {
+  justify-content: center;
+}
+
+.phase-day {
+  color: #f5c75e;
+}
+
+.phase-night {
+  color: #a5b4fc;
+}
+
+.hud-resources {
+  gap: 18px;
+}
+
+.hud-resource {
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-credits svg {
+  color: #f5c75e;
+}
+
+.hud-civilians svg {
+  color: #8dd9b2;
+}
+
+@media (max-width: 480px) {
+  .game-hud {
+    top: 10px;
+    gap: 14px;
+    padding: 10px 12px;
+  }
+
+  .hud-day {
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .hud-resources {
+    gap: 12px;
+  }
+
+  .hud-resource {
+    gap: 5px;
+    font-size: 12px;
+  }
 }

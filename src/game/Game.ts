@@ -39,11 +39,28 @@ export class Game {
   	new THREE.Vector3(0, 1, 0),
   	0,
   );
-
-
+  public getState(): GameState {
+  	return { ...this.state };
+	}
+	
+  private publishState(): void {
+  	this.onStateChange?.(this.getState());
+	}
+	
+  private setPhase(phase: GamePhase): void {
+  	if (this.state.phase === phase) return;
+	
+  	this.state.phase = phase;
+  	this.publishState();
+	}
+	
   
-	constructor(container: HTMLElement) {
+	constructor(
+  		container: HTMLElement,
+  		onStateChange?: (state: GameState) => void,
+	) { 
   	this.container = container;
+  	this.onStateChange = onStateChange;
 	
   	this.scene = new THREE.Scene();
   	this.scene.background = new THREE.Color(0x111318);
@@ -144,6 +161,12 @@ export class Game {
    	this.enemies.push(enemy);
    	this.scene.add(enemy.mesh);
  	}
+ 	
+ 	this.state.civiliansAlive = this.civilians.filter(
+  		(civilian) => civilian.isAlive(),
+	).length;
+	
+	this.publishState();
 	
 }
 
