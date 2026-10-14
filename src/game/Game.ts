@@ -11,6 +11,8 @@ import {
   type GameState,
   type GamePhase,
 } from "./GameState";
+import { TurnSystem } from "./systems/TurnSystem";
+import { WaveSystem } from "./systems/WaveSystem";
 
 
 
@@ -36,6 +38,10 @@ export class Game {
   	const waveSizes = [5, 10, 15, 15];
   	return waveSizes[day - 1] ?? 15;
   }
+  
+  private turnSystem!: TurnSystem;
+  private waveSystem!: WaveSystem;
+	
 	
   private readonly raycaster = new THREE.Raycaster();
   private readonly mouse = new THREE.Vector2();
@@ -65,6 +71,25 @@ export class Game {
 	) { 
   	this.container = container;
   	this.onStateChange = onStateChange;
+  	
+	this.waveSystem = new WaveSystem(this.state.totalDays);
+	
+	this.turnSystem = new TurnSystem(this.state, {
+  	onPhaseChange: (phase) => {
+    	this.state.phase = phase;
+    	this.publishState();
+  		},
+	
+  	onNightStarted: (day) => {
+    	this.spawnWave(day);
+  		},
+	
+  	onDayStarted: (day) => {
+    	this.state.day = day;
+    	this.publishState();
+  		},
+	});
+	
 	
   	this.scene = new THREE.Scene();
   	this.scene.background = new THREE.Color(0x111318);
@@ -157,6 +182,7 @@ export class Game {
  	}
 	
  	// Enemigos de prueba.
+ 	/*
  	for (let i = 0; i < 3; i++) {
    	const enemy = new Enemy();
    	enemy.setPosition(
@@ -166,7 +192,7 @@ export class Game {
    	this.enemies.push(enemy);
    	this.scene.add(enemy.mesh);
  	}
- 	
+ 	*/
  	this.state.civiliansAlive = this.civilians.filter(
   		(civilian) => civilian.isAlive(),
 	).length;
@@ -175,7 +201,44 @@ export class Game {
 	
 }
 
-
+	
+	private spawnWave(day: number): void {
+  	const wave = this.waveSystem.getWaveConfig(day);
+	
+  	if (!wave) return;
+	
+  	// Crear los enemigos normales de la oleada.
+  	for (let i = 0; i < wave.enemyCount; i++) {
+    	const enemy = new Enemy();
+	
+    	const spacing = 2.5;
+    	const x = (i - (wave.enemyCount - 1) / 2) * spacing;
+	
+    	enemy.setPosition(
+      	new THREE.Vector3(x, 0, 15),
+    	);
+	
+    	this.enemies.push(enemy);
+    	this.scene.add(enemy.mesh);
+  		}
+	
+  	// El jefe aparece adicionalmente en la última oleada.
+  	if (wave.boss) {
+    	const boss = new Enemy({
+      	maxHealth: wave.boss.maxHealth,
+      	moveSpeed: wave.boss.moveSpeed,
+      	damage: wave.boss.damage,
+      	radius: wave.boss.radius,
+      	height: wave.boss.height,
+    	});
+	
+    	boss.setPosition(new THREE.Vector3(0, 0, 19));
+	
+    	this.enemies.push(boss);
+    	this.scene.add(boss.mesh);
+  		}
+	}
+	
 	
 	private handlePointerDown = (
   	event: PointerEvent,
@@ -244,19 +307,24 @@ export class Game {
    * Game loop principal.
    */
    
-   private readonly handleKeyDown = (event: KeyboardEvent): void => {
+   
+	private readonly handleKeyDown = (
+  		event: KeyboardEvent,
+		): void => {
   		if (event.repeat) return;
 		
-  		if (event.key.toLowerCase() === "n") {
-    		if (this.state.phase === "day") {
-      		this.activateNightTurn();
-    		}
+  		const key = event.key.toLowerCase();
+		
+  		if (key === "n") {
+    		this.turnSystem.activateNightTurn();
   		}
 		
-  		if (event.key.toLowerCase() === "h") {
+  		// Tecla de prueba para dañar la base.
+  		if (key === "h") {
     		this.base.takeDamage(100);
-  	  }
+  		}
 	};
+
   
   private gameLoop(currentTime: number): void {
     const delta = Math.min(
@@ -333,12 +401,32 @@ export class Game {
       		this.enemies.splice(i, 1);
     		}
   		}
+  	/*	
   	if (
   		this.state.phase === "night" &&
   		this.enemies.length === 0
 		) {
   		this.startNextDay();
 		}
+	*/
+	
+    // La destrucción de la base termina la partida.
+    if (
+      	!["victory", "defeat"].includes(this.state.phase) &&
+      	this.base.isDestroyed()
+    	) {
+      	this.turnSystem.declareDefeat();
+      	return;
+    	}
+
+    // La noche termina cuando todos los enemigos han muerto.
+    if (
+      	this.state.phase === "night" &&
+      	this.enemies.length === 0
+    	) {
+      	this.turnSystem.completeNightTurn();
+    	}
+	
 	}
 
 
