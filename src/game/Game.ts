@@ -32,6 +32,10 @@ export class Game {
   private bullets: Bullet[] = [];
   private state: GameState = createInitialGameState();
   private readonly onStateChange?: (state: GameState) => void;
+  private getWaveSize(day: number): number {
+  	const waveSizes = [5, 10, 15, 15];
+  	return waveSizes[day - 1] ?? 15;
+  }
 	
   private readonly raycaster = new THREE.Raycaster();
   private readonly mouse = new THREE.Vector2();
@@ -86,6 +90,7 @@ export class Game {
   	this.gameLoop = this.gameLoop.bind(this);
 	
   	window.addEventListener("resize", this.handleResize);
+  	window.addEventListener("keydown", this.handleKeyDown);
 	
   	this.setupScene();
 	}
@@ -238,6 +243,21 @@ export class Game {
   /**
    * Game loop principal.
    */
+   
+   private readonly handleKeyDown = (event: KeyboardEvent): void => {
+  		if (event.repeat) return;
+		
+  		if (event.key.toLowerCase() === "n") {
+    		if (this.state.phase === "day") {
+      		this.activateNightTurn();
+    		}
+  		}
+		
+  		if (event.key.toLowerCase() === "h") {
+    		this.base.takeDamage(100);
+  	  }
+	};
+  
   private gameLoop(currentTime: number): void {
     const delta = Math.min(
       (currentTime - this.previousTime) / 1000,
@@ -250,11 +270,6 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
 
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
-    window.addEventListener("keydown", (event) => {
-  	if (event.key.toLowerCase() === "h") {
-    	this.base.takeDamage(100);
-  		}
-	});
   }
 
   /**
@@ -310,14 +325,20 @@ export class Game {
 	
   	// Retirar enemigos muertos de la escena.
   	for (let i = this.enemies.length - 1; i >= 0; i--) {
-    	const enemy = this.enemies[i];
-	
-    	if (enemy.isDead()) {
-      	this.scene.remove(enemy.mesh);
-      	enemy.dispose();
-      	this.enemies.splice(i, 1);
-    	}
-  	}
+    		const enemy = this.enemies[i];
+		
+    		if (enemy.isDead()) {
+      		this.scene.remove(enemy.mesh);
+      		enemy.dispose();
+      		this.enemies.splice(i, 1);
+    		}
+  		}
+  	if (
+  		this.state.phase === "night" &&
+  		this.enemies.length === 0
+		) {
+  		this.startNextDay();
+		}
 	}
 
 
@@ -358,7 +379,7 @@ export class Game {
    */
   public dispose(): void {
     this.stop();
-
+	window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("resize", this.handleResize);
     this.terrain.dispose();
     this.player.dispose();
