@@ -77,6 +77,16 @@ export class Game {
 	) { 
   	this.container = container;
   	this.onStateChange = onStateChange;
+  	this.buildingSystem = new BuildingSystem(
+  		this.scene,
+  		this.economySystem,
+  		{
+    		interactionDistance: 2.5,
+    		siteRadius: 1.5,
+  		},
+	);
+	
+	this.buildingSystem.setDayPhase(this.state.phase === "day");
   	
 	this.waveSystem = new WaveSystem(this.state.totalDays);
 	
@@ -85,6 +95,7 @@ export class Game {
   		onPhaseChange: (phase) => {
     		this.state.phase = phase;
     		this.buildingSystem?.setDayPhase(phase === "day");
+    		this.registerBuildSites();
     		this.publishState();
   		},
 		
@@ -120,6 +131,7 @@ export class Game {
 	onPhaseChange: (phase) => {
   		this.state.phase = phase;
   		this.buildingSystem?.setDayPhase(phase === "day");
+  		this.registerBuildSites();
   		this.publishState();
   		
 		const firstDayIncome = this.economySystem.collectDailyIncome(
