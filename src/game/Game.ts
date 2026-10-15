@@ -13,6 +13,9 @@ import {
 } from "./GameState";
 import { TurnSystem } from "./systems/TurnSystem";
 import { WaveSystem } from "./systems/WaveSystem";
+import { EconomySystem } from "./systems/EconomySystem";
+import { BuildingSystem } from "./systems/BuildingSystem";
+
 
 
 
@@ -41,6 +44,9 @@ export class Game {
   
   private turnSystem!: TurnSystem;
   private waveSystem!: WaveSystem;
+  private economySystem!: EconomySystem;
+  private buildingSystem!: BuildingSystem;
+
 	
 	
   private readonly raycaster = new THREE.Raycaster();
@@ -75,19 +81,47 @@ export class Game {
 	this.waveSystem = new WaveSystem(this.state.totalDays);
 	
 	this.turnSystem = new TurnSystem(this.state, {
-  	onPhaseChange: (phase) => {
-    	this.state.phase = phase;
-    	this.publishState();
-  		},
-	
-  	onNightStarted: (day) => {
-    	this.spawnWave(day);
-  		},
-	
-  	onDayStarted: (day) => {
-    	this.state.day = day;
-    	this.publishState();
-  		},
+  	
+	onPhaseChange: (phase) => {
+  		this.state.phase = phase;
+  		this.buildingSystem?.setDayPhase(phase === "day");
+  		this.publishState();
+  		
+		const firstDayIncome = this.economySystem.collectDailyIncome(
+  		this.state.day,
+  		this.state.civiliansAlive,
+			);
+		
+		if (firstDayIncome) {
+  		this.state.credits = this.economySystem.getCredits();
+  		this.turnSystem.updateGameData({
+    		credits: this.state.credits,
+    		civiliansAlive: this.state.civiliansAlive,
+  			});
+		}
+
+		},
+		
+		onDayStarted: (day) => {
+  		this.state.day = day;
+		
+  		const income = this.economySystem.collectDailyIncome(
+    		day,
+    		this.state.civiliansAlive,
+  		);
+		
+  		if (income) {
+    		this.state.credits = this.economySystem.getCredits();
+  		}
+		
+  		this.turnSystem.updateGameData({
+    		credits: this.state.credits,
+    		civiliansAlive: this.state.civiliansAlive,
+  		});
+		
+  		this.publishState();
+		},
+
 	});
 	
 	
@@ -108,6 +142,23 @@ export class Game {
   		"pointerdown",
   		this.handlePointerDown,
 	);
+	
+	this.economySystem = new EconomySystem({
+  	initialCredits: this.state.credits,
+		}
+	);
+	
+	this.buildingSystem = new BuildingSystem(
+  	this.scene,
+  	this.economySystem,
+  	{
+    	interactionDistance: 2.5,
+    	siteRadius: 1.5,
+  		},
+	);
+	
+	this.buildingSystem.setDayPhase(this.state.phase === "day");
+	
 	
   	this.container.appendChild(this.renderer.domElement);
 	
@@ -201,6 +252,39 @@ export class Game {
 	
 }
 
+	
+	private registerBuildSites(): void {
+  		const sites = [
+    		{
+      		id: "house-basic-1",
+      		position: new THREE.Vector3(-5, 0, -7),
+      		type: "house",
+      		variant: "basic",
+    		},
+    		{
+      		id: "house-advanced-1",
+      		position: new THREE.Vector3(5, 0, -7),
+      		type: "house",
+      		variant: "advanced",
+    		},
+    		{
+      		id: "tower-basic-1",
+      		position: new THREE.Vector3(-7, 0, 0),
+      		type: "tower",
+      		variant: "basic",
+    		},
+    		{
+      		id: "tower-advanced-1",
+      		position: new THREE.Vector3(7, 0, 0),
+      		type: "tower",
+      		variant: "advanced",
+    		},
+  		] as const;
+		
+  		for (const site of sites) {
+    		this.buildingSystem.registerBuildSite(site);
+  		}
+	}
 	
 	private spawnWave(day: number): void {
   	const wave = this.waveSystem.getWaveConfig(day);
@@ -323,9 +407,52 @@ export class Game {
   		if (key === "h") {
     		this.base.takeDamage(100);
   		}
+  		
+		if (event.key.toLowerCase() === "p") {
+  		this.handleBuildInput();
+		}
+		
 	};
 
   
+	private handleBuildInput(): void {
+  		if (this.state.phase !== "day") {
+    		console.info("Solo puedes construir durante el día.");
+    		return;
+  		}
+		
+  		const playerPosition = this.player.getPosition();
+  		const site = this.buildingSystem.getNearbyBuildSite(playerPosition);
+		
+  		if (!site) {
+    		console.info("Acércate a un punto de construcción.");
+    		return;
+  		}
+		
+  		const result = this.buildingSystem.buildAt(
+    		site.id,
+    		playerPosition,
+  		);
+		
+  		if (!result.success) {
+    		const messages: Record<typeof result.reason, string> = {
+      		"not-day": "Solo puedes construir durante el día.",
+      		"too-far": "Estás demasiado lejos del punto.",
+      		occupied: "Ese lugar está ocupado.",
+      		"insufficient-credits": "No tienes suficientes créditos.",
+      		"invalid-site": "El punto de construcción no es válido.",
+      		"already-built": "Ya hay un edificio en ese punto.",
+    		};
+		
+    		console.info(messages[result.reason]);
+    		return;
+  		}
+		
+  		this.state.credits = this.economySystem.getCredits();
+		
+  		this.publishState();
+	}
+
   private gameLoop(currentTime: number): void {
     const delta = Math.min(
       (currentTime - this.previousTime) / 1000,
@@ -498,6 +625,8 @@ export class Game {
 	this.bullets = [];
 	this.enemies = [];
 	this.civilians = [];
+	this.buildingSystem?.dispose();
+
 	
 
     if (this.renderer.domElement.parentElement === this.container) {
