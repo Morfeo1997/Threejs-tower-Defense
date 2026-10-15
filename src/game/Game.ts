@@ -80,6 +80,41 @@ export class Game {
   	
 	this.waveSystem = new WaveSystem(this.state.totalDays);
 	
+	
+	this.turnSystem = new TurnSystem(this.state, {
+  		onPhaseChange: (phase) => {
+    		this.state.phase = phase;
+    		this.buildingSystem?.setDayPhase(phase === "day");
+    		this.publishState();
+  		},
+		
+  		// ESTA LLAMADA FALTABA: genera la oleada al comenzar la noche.
+  		onNightStarted: (day) => {
+    		this.spawnWave(day);
+  		},
+		
+  		onDayStarted: (day) => {
+    		this.state.day = day;
+		
+    		const income = this.economySystem.collectDailyIncome(
+      		day,
+      		this.state.civiliansAlive,
+    		);
+		
+    		if (income) {
+      		this.state.credits = this.economySystem.getCredits();
+    		}
+		
+    		this.turnSystem.updateGameData({
+      		credits: this.state.credits,
+      		civiliansAlive: this.state.civiliansAlive,
+    		});
+		
+    		this.publishState();
+  		},
+	});
+
+	/*
 	this.turnSystem = new TurnSystem(this.state, {
   	
 	onPhaseChange: (phase) => {
@@ -123,6 +158,7 @@ export class Game {
 		},
 
 	});
+	*/
 	
 	
   	this.scene = new THREE.Scene();
@@ -244,11 +280,28 @@ export class Game {
    	this.scene.add(enemy.mesh);
  	}
  	*/
- 	this.state.civiliansAlive = this.civilians.filter(
-  		(civilian) => civilian.isAlive(),
+ 	
+	this.state.civiliansAlive = this.civilians.filter(
+  	(civilian) => civilian.isAlive(),
 	).length;
 	
+	// Cobrar los ingresos del primer día una sola vez.
+	const firstDayIncome = this.economySystem.collectDailyIncome(
+  	this.state.day,
+  	this.state.civiliansAlive,
+	);
+	
+	if (firstDayIncome) {
+  	this.state.credits = this.economySystem.getCredits();
+	}
+	
+	this.turnSystem.updateGameData({
+  	credits: this.state.credits,
+  	civiliansAlive: this.state.civiliansAlive,
+	});
+	
 	this.publishState();
+
 	
 }
 
