@@ -1,8 +1,8 @@
 
-export type BuildingType = "house" | "tower";
+export type BuildingType = "house" | "tower" | "shelter" | "armory";
 export type BuildingVariant = "basic" | "advanced";
 
-export type UpgradeType = "house" | "tower";
+export type UpgradeType = "house" | "tower" | "shelter" | "armory";
 
 export interface BuildingPrices {
   house: {
@@ -10,6 +10,14 @@ export interface BuildingPrices {
     advanced: number;
   };
   tower: {
+    basic: number;
+    advanced: number;
+  };
+  shelter: {
+    basic: number;
+    advanced: number;
+  };
+  armory: {
     basic: number;
     advanced: number;
   };
@@ -23,6 +31,8 @@ export interface EconomyConfig {
   upgradeCosts: {
     house: number;
     tower: number;
+    shelter: number;
+    armory: number;
   };
 }
 
@@ -48,13 +58,22 @@ const DEFAULT_CONFIG: EconomyConfig = {
       basic: 60,
       advanced: 90,
     },
+    shelter: {
+      basic: 45,
+      advanced: 65,
+    },
+    armory: {
+      basic: 80,
+      advanced: 110,
+    },
   },
 
-  // Costos provisionales para mejorar un edificio ya construido.
-  // Se podrán ajustar cuando definamos los niveles de mejora.
+  // Costes provisionales de mejora de edificios.
   upgradeCosts: {
     house: 30,
     tower: 40,
+    shelter: 25,
+    armory: 50,
   },
 };
 
@@ -67,6 +86,7 @@ export class EconomySystem {
     this.config = {
       ...DEFAULT_CONFIG,
       ...config,
+
       buildingPrices: {
         house: {
           ...DEFAULT_CONFIG.buildingPrices.house,
@@ -76,7 +96,16 @@ export class EconomySystem {
           ...DEFAULT_CONFIG.buildingPrices.tower,
           ...config.buildingPrices?.tower,
         },
+        shelter: {
+          ...DEFAULT_CONFIG.buildingPrices.shelter,
+          ...config.buildingPrices?.shelter,
+        },
+        armory: {
+          ...DEFAULT_CONFIG.buildingPrices.armory,
+          ...config.buildingPrices?.armory,
+        },
       },
+
       upgradeCosts: {
         ...DEFAULT_CONFIG.upgradeCosts,
         ...config.upgradeCosts,
@@ -91,9 +120,11 @@ export class EconomySystem {
   }
 
   public canAfford(amount: number): boolean {
-    return Number.isFinite(amount) &&
+    return (
+      Number.isFinite(amount) &&
       amount >= 0 &&
-      this.credits >= amount;
+      this.credits >= amount
+    );
   }
 
   /**
@@ -146,14 +177,14 @@ export class EconomySystem {
   }
 
   /**
-   * Devuelve el costo de mejorar un edificio existente.
+   * Devuelve el coste de mejorar un edificio existente.
    */
   public getUpgradeCost(type: UpgradeType): number {
     return this.config.upgradeCosts[type];
   }
 
   /**
-   * Paga una recompensa al comenzar el nuevo día.
+   * Paga una recompensa al comenzar un nuevo día.
    * Cada jornada solo puede pagarse una vez.
    */
   public collectDailyIncome(
